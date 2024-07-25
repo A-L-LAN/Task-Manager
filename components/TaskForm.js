@@ -1,27 +1,77 @@
-import React, { useState } from 'react';
-import { TextField, Button } from '@mui/material';
+
+
+
+
+// components/TaskForm.js
+
+import React, { useState, useEffect } from 'react';
+import { TextField, Button, Snackbar } from '@mui/material';
+import * as tf from '@tensorflow/tfjs';
+import * as toxicity from '@tensorflow-models/toxicity';
+
+const threshold = 0.9;
 
 export default function TaskForm({ onAdd }) {
   const [task, setTask] = useState('');
+  const [model, setModel] = useState(null);
+  const [error, setError] = useState('');
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
 
-  const handleSubmit = (e) => {
+  useEffect(() => {
+    // Load the toxicity model
+    toxicity.load(threshold).then(mod => {
+      setModel(mod);
+    });
+  }, []);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Analyze the sentiment of the task
+    if (model) {
+      const predictions = await model.classify([task]);
+      const toxic = predictions.some(prediction => 
+        prediction.results.some(res => res.match)
+      );
+
+      if (toxic) {
+        setError('Task contains negative sentiment. Please revise.');
+        setSnackbarOpen(true);
+        return;
+      }
+    }
+    
+    // If not toxic, add the task
     onAdd(task);
     setTask('');
+    setError('');
+  };
+
+  const handleCloseSnackbar = () => {
+    setSnackbarOpen(false);
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <TextField
-        label="New Task"
-        variant="outlined"
-        value={task}
-        onChange={(e) => setTask(e.target.value)}
+    <>
+      <form onSubmit={handleSubmit}>
+        <TextField
+          label="New Task"
+          variant="outlined"
+          value={task}
+          onChange={(e) => setTask(e.target.value)}
+          error={Boolean(error)}
+          helperText={error}
+        />
+        <Button type="submit" variant="contained" color="primary">
+          Add
+        </Button>
+      </form>
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+        message={error}
       />
-      <Button type="submit" variant="contained" color="primary">
-        Add
-      </Button>
-    </form>
+    </>
   );
 }
-
