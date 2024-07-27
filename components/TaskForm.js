@@ -16,27 +16,36 @@ export default function TaskForm({ onAdd }) {
   useEffect(() => {
     // Load the toxicity model
     toxicity.load(threshold).then(mod => {
+      console.log('Toxicity model loaded');
       setModel(mod);
+    }).catch(err => {
+      console.error('Failed to load the toxicity model', err);
     });
   }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Analyze the sentiment of the task
-    if (model) {
-      const predictions = await model.classify([task]);
-      const toxic = predictions.some(prediction => 
-        prediction.results.some(res => res.match)
-      );
 
-      if (toxic) {
-        setError('Task contains negative sentiment. Please revise.');
-        setSnackbarOpen(true);
-        return;
+    try {
+      // Analyze the sentiment of the task
+      if (model) {
+        const predictions = await model.classify([task]);
+        const toxic = predictions.some(prediction =>prediction.results.some(res => res.match)
+        );
+
+        if (toxic) {
+          setError('Task contains negative sentiment. Please revise.');
+          setSnackbarOpen(true);
+          return;
+        }
       }
+    } catch (err) {
+      console.error('Failed to classify the task', err);
+      setError('Error classifying the task. Please try again.');
+      setSnackbarOpen(true);
+      return;
     }
-    
+
     // If not toxic, add the task
     onAdd(task);
     setTask('');
