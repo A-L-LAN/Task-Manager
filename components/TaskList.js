@@ -16,4 +16,3 @@ export default function TaskList({ tasks, onDelete }) {
     </List>
   );
 }
-
